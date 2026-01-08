@@ -1,4 +1,4 @@
-Name: YouTube Relay Pro (Auto-Reconnect)
+name: YouTube Relay Pro (Auto-Reconnect)
 
 on:
   workflow_dispatch:
