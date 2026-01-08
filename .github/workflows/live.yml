@@ -36,22 +36,22 @@ jobs:
           while true; do
             echo "Mengecek ketersediaan video sumber..."
             
-            # Ambil URL video sumber
+            # Ambil URL secara hati-hati
             VIDEO_URL=$(yt-dlp --cookies cookies.txt -f "best[height<=720]" -g "${{ github.event.inputs.link_youtube }}" 2>/dev/null)
 
             if [ -z "$VIDEO_URL" ]; then
-              echo "PERINGATAN: Sumber video offline. Re-trying dalam 5 detik..."
+              echo "PERINGATAN: Sumber video tidak ditemukan atau sedang offline. Cek lagi dalam 5 detik..."
               sleep 5
               continue
             fi
 
             echo "SUMBER AKTIF! Menjalankan FFmpeg dengan Volume 10x..."
 
-            # Menggunakan volume 10.0 dan penyesuaian audio agar tidak pecah
+            # Menggunakan volume 10.0 dan alimiter agar suara keras tapi tidak pecah
             ffmpeg -re -i "$VIDEO_URL" \
               -stream_loop -1 -i logo_video.mp4 \
               -filter_complex "[1:v]colorkey=0x008100:0.1:0.1,scale=75:-1[logo]; [0:v][logo]overlay=W-w-15:15:shortest=1" \
-              -af "volume=10.0,compand=0.3|0.3:6:-90/-90/-70/-70/-20/-20/0/-20:6:0:-90:0.2" \
+              -af "volume=10.0,alimiter=limit=0.9" \
               -c:v libx264 -preset veryfast -b:v 2500k \
               -c:a aac -ar 44100 -b:a 128k \
               -f flv "rtmp://a.rtmp.youtube.com/live2/${{ github.event.inputs.kunci_rtmp }}"
