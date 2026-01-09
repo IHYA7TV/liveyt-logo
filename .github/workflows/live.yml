@@ -22,7 +22,7 @@ jobs:
 
       - name: Persiapan & Loop Streaming
         run: |
-          # Matikan fitur 'exit on error' agar loop tetap jalan
+          # Matikan fitur 'exit on error' agar loop tetap jalan meski yt-dlp/ffmpeg gagal
           set +e 
           
           echo "${{ secrets.YT_COOKIES }}" > cookies.txt
@@ -45,17 +45,16 @@ jobs:
               continue
             fi
 
-            echo "SUMBER AKTIF! Menjalankan FFmpeg dengan Volume 10x..."
+            echo "SUMBER AKTIF! Menjalankan FFmpeg..."
 
-            # Menggunakan volume 10.0 dan alimiter agar suara keras tapi tidak pecah
+            # Menjalankan FFmpeg dengan parameter ketahanan tinggi
             ffmpeg -re -i "$VIDEO_URL" \
               -stream_loop -1 -i logo_video.mp4 \
               -filter_complex "[1:v]colorkey=0x008100:0.1:0.1,scale=75:-1[logo]; [0:v][logo]overlay=W-w-15:15:shortest=1" \
-              -af "volume=10.0,alimiter=limit=0.9" \
               -c:v libx264 -preset veryfast -b:v 2500k \
               -c:a aac -ar 44100 -b:a 128k \
               -f flv "rtmp://a.rtmp.youtube.com/live2/${{ github.event.inputs.kunci_rtmp }}"
 
-            echo "FFmpeg berhenti. Restarting dalam 1 detik..."
+            echo "FFmpeg berhenti (mungkin lag atau koneksi putus). Restarting dalam 1 detik..."
             sleep 1
           done
