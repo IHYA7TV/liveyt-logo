@@ -1,4 +1,4 @@
-- name: Persiapan & Loop Streaming
+name: Persiapan & Loop Streaming
         run: |
           # Matikan exit on error
           set +e 
