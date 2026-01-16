@@ -1,63 +1,39 @@
-name: YouTube Relay Pro (Auto-Reconnect)
-
-on:
-  workflow_dispatch:
-    inputs:
-      link_youtube:
-        description: 'Link Video Utama'
-        required: true
-      kunci_rtmp:
-        description: 'Stream Key YouTube'
-        required: true
-
-jobs:
-  streaming:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Install Tooling
+- name: Persiapan & Loop Streaming
         run: |
-          sudo apt update && sudo apt install ffmpeg jq -y
-          sudo curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp
-          sudo chmod a+rx /usr/local/bin/yt-dlp
-
-      - name: Persiapan & Loop Streaming
-        run: |
-          # Matikan 'exit on error' agar jika ffmpeg putus, loop tetap lanjut
+          # Matikan exit on error
           set +e 
           
-          # Membuat file cookies dari Secrets
+          # Simpan cookies
           echo "${{ secrets.YT_COOKIES }}" > cookies.txt
           
           echo "Mengunduh logo..."
           LINK_LOGO="https://youtu.be/zR6n39ZWrJM"
-          # Menambahkan --quiet agar log tidak terlalu penuh
-          yt-dlp --cookies cookies.txt -f "best" --merge-output-format mp4 "$LINK_LOGO" -o logo_video.mp4 || echo "Gagal download logo, lanjut tanpa logo..."
+          yt-dlp --cookies cookies.txt -f "best" --merge-output-format mp4 "$LINK_LOGO" -o logo_video.mp4 || echo "Logo gagal, lanjut..."
 
-          echo "Memulai sistem pemantauan streaming..."
+          echo "Memulai loop streaming..."
           
           while true; do
-            echo "Mengecek ketersediaan video sumber..."
+            echo "Mendapatkan URL video..."
             
-            # Ambil URL video. Jika gagal, VIDEO_URL akan kosong.
+            # Ambil URL video utama
             VIDEO_URL=$(yt-dlp --cookies cookies.txt -f "best[height<=720]" -g "${{ github.event.inputs.link_youtube }}" 2>/dev/null)
 
             if [ -z "$VIDEO_URL" ]; then
-              echo "PERINGATAN: Sumber video tidak ditemukan atau offline. Cek lagi dalam 5 detik..."
+              echo "Sumber tidak ditemukan. Coba lagi dalam 5 detik..."
               sleep 5
               continue
             fi
 
-            echo "SUMBER AKTIF! Menjalankan FFmpeg..."
+            echo "Menjalankan FFmpeg..."
 
-            # Menjalankan FFmpeg
-            # Perbaikan: Menghapus tanda kurung di pesan echo bawah agar tidak error lagi
+            # Perhatikan penggunaan tanda kutip di bawah ini, semuanya harus berpasangan
             ffmpeg -re -i "$VIDEO_URL" \
               -stream_loop -1 -i logo_video.mp4 \
-              -filter_complex "[1:v]colorkey=0x008100:0.1:0.1,scale=75:-1[logo]; [0:v][logo]overlay=W-w-15:15:shortest=1" \
+              -filter_complex "[1:v]colorkey=0x008100:0.1:0.1,scale=75:-1[logo];[0:v][logo]overlay=W-w-15:15:shortest=1" \
               -c:v libx264 -preset veryfast -b:v 2500k \
               -c:a aac -ar 44100 -b:a 128k \
               -f flv "rtmp://a.rtmp.youtube.com/live2/${{ github.event.inputs.kunci_rtmp }}"
 
-            echo "FFmpeg berhenti - koneksi terputus atau reset. Restarting dalam 1 detik..."
+            echo "FFmpeg terhenti. Mengulang kembali..."
             sleep 1
           done
